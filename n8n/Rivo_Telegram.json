@@ -1,0 +1,515 @@
+{
+  "name": "Rivo-Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const data = items[0].json;\n\nreturn {\n    json: data['body']['message'] || data['body']['edited_message']\n  };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2060,
+        -550
+      ],
+      "id": "eaf662ee-76f2-468b-9480-b98e0d003013",
+      "name": "Get_Message"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-hook",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -2280,
+        -550
+      ],
+      "id": "20b1420c-0a7d-41fa-b426-93d2a6b0b83c",
+      "name": "Messsage_Hook",
+      "webhookId": "1b0ef207-4102-4375-ac03-214f74a4bf68"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This code runs once per batch of incoming items.\n// It recursively traverses each item's JSON to any depth,\n// emits a record for every object that contains a `file_id`,\n// and de-duplicates by file_id.\n\nconst output = [];\nconst seenFileIds = new Set();\n\n/**\n * Recursively search an object for `file_id` properties.\n * @param {object} obj         The current object to inspect.\n * @param {string} path        The dot‑delimited key path to this object.\n */\nfunction traverse(obj, path = '') {\n  if (obj && typeof obj === 'object') {\n    for (const [key, value] of Object.entries(obj)) {\n      const currentPath = path ? `${path}.${key}` : key;\n\n      // If this value is an object with a file_id...\n      if (value && typeof value === 'object' && value.file_id) {\n        const id = value.file_id;\n        // Only emit if we haven't seen it before\n        if (!seenFileIds.has(id)) {\n          seenFileIds.add(id);\n          output.push({\n            json: {\n              type:    currentPath,  // path indicating where it was found\n              file_id: id,\n            },\n          });\n        }\n      }\n\n      // Recurse into nested objects/arrays\n      if (value && typeof value === 'object') {\n        traverse(value, currentPath);\n      }\n    }\n  }\n}\n\n// Process every incoming item\nfor (const item of items) {\n  traverse(item.json);\n}\n\n// Return all unique file_ids in one go\nreturn output[output.length - 1];;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1620,
+        -450
+      ],
+      "id": "4465de94-6c1e-461b-b22e-a72ef6794e54",
+      "name": "Extract_FileId"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://rivo-backend:3000/api/upload",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -960,
+        -450
+      ],
+      "id": "436f0b60-8ace-4062-ace9-9014bac1589f",
+      "name": "Extract_Text",
+      "alwaysOutputData": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot7720997111:AAHURfIZA9ObRrHwqzaX5GZHbZG5AH8B7N4/{{ $json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1180,
+        -450
+      ],
+      "id": "e2a191da-d622-4cf2-974b-78f040dbbe90",
+      "name": "Download_File"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot7720997111:AAHURfIZA9ObRrHwqzaX5GZHbZG5AH8B7N4/getFile?file_id={{ $json.file_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1400,
+        -450
+      ],
+      "id": "d173d78e-7083-4f6e-9cbb-08ccf63af7e9",
+      "name": "Get_FilePath"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.result }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "check if input is a valid prescription text. if Yes then output prescription details only (medicine, doses, etc..) without any additioinal generated text. if No then output exactly \"Not a valid prescription.\"."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -740,
+        -700
+      ],
+      "id": "f2660579-6d19-403f-9170-4bb3e02281bf",
+      "name": "Basic LLM Chain",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "value": "rivo-466322",
+          "mode": "list",
+          "cachedResultName": "Rivo"
+        },
+        "modelName": "gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
+      "typeVersion": 1,
+      "position": [
+        -652,
+        -480
+      ],
+      "id": "094e8d57-c180-49fd-a5a6-59e666233338",
+      "name": "Google Vertex Chat Model",
+      "credentials": {
+        "googleApi": {
+          "id": "A9GGNUMCq2Qjcgv3",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node.Get_Message.json.from.id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -144,
+        -600
+      ],
+      "id": "be53523c-8974-44f7-940a-3abe3c18b628",
+      "name": "Send_Response",
+      "webhookId": "2e7e3fdc-01ef-4a85-8eaf-3a45fd350388",
+      "credentials": {
+        "telegramApi": {
+          "id": "loHsJJS1kJ6gLTls",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6d7c5f87-ab08-4d69-88fe-039fe65b35bb",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1840,
+        -550
+      ],
+      "id": "bdd4e179-32ef-4520-81e5-8789b4ac3e86",
+      "name": "If_Text_Else_File"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node.Get_Message.json.from.id }}",
+        "text": "=Something went wrong. Please, try again later.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -662,
+        -300
+      ],
+      "id": "62b7fc19-aed0-4088-9feb-149d2001c479",
+      "name": "Send_Error",
+      "webhookId": "d2fc7252-bd3a-48f9-b7c4-ce049cc26bf0",
+      "credentials": {
+        "telegramApi": {
+          "id": "loHsJJS1kJ6gLTls",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "252b5755-5739-44d6-a98a-5b23f9d86321",
+              "name": "text",
+              "value": "Not a valid prescription.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -364,
+        -525
+      ],
+      "id": "982213c8-6a49-48ef-a3e6-8a3351f3f5ec",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node.Get_Message.json.from.id }}",
+        "text": "=Please, send a valid prescription.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1620,
+        -650
+      ],
+      "id": "dc126388-e0cb-456c-9fe5-ffd7936c5c5e",
+      "name": "Send_File_Request",
+      "webhookId": "5fb3ecae-e7d5-44a9-8377-7b7e62212e7b",
+      "credentials": {
+        "telegramApi": {
+          "id": "loHsJJS1kJ6gLTls",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Messsage_Hook": [
+      {
+        "json": {
+          "headers": {
+            "connection": "upgrade",
+            "host": "s2vm2.publicvm.com",
+            "content-length": "1099",
+            "content-type": "application/json",
+            "accept-encoding": "gzip, deflate"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "update_id": 182267097,
+            "message": {
+              "message_id": 2386,
+              "from": {
+                "id": 1134991521,
+                "is_bot": false,
+                "first_name": "Mostafa",
+                "last_name": "Galal",
+                "language_code": "en"
+              },
+              "chat": {
+                "id": 1134991521,
+                "first_name": "Mostafa",
+                "last_name": "Galal",
+                "type": "private"
+              },
+              "date": 1752855895,
+              "forward_origin": {
+                "type": "user",
+                "sender_user": {
+                  "id": 1134991521,
+                  "is_bot": false,
+                  "first_name": "Mostafa",
+                  "last_name": "Galal",
+                  "language_code": "en"
+                },
+                "date": 1752853936
+              },
+              "forward_from": {
+                "id": 1134991521,
+                "is_bot": false,
+                "first_name": "Mostafa",
+                "last_name": "Galal",
+                "language_code": "en"
+              },
+              "forward_date": 1752853936,
+              "photo": [
+                {
+                  "file_id": "AgACAgQAAxkBAAIJTWh6bbB7-sftdKM6zgN0xzkZ2kvoAALLxDEbJ9DZU2L_nCzSdB2XAQADAgADcwADNgQ",
+                  "file_unique_id": "AQADy8QxGyfQ2VN4",
+                  "file_size": 1157,
+                  "width": 90,
+                  "height": 76
+                },
+                {
+                  "file_id": "AgACAgQAAxkBAAIJTWh6bbB7-sftdKM6zgN0xzkZ2kvoAALLxDEbJ9DZU2L_nCzSdB2XAQADAgADeAADNgQ",
+                  "file_unique_id": "AQADy8QxGyfQ2VN9",
+                  "file_size": 15402,
+                  "width": 359,
+                  "height": 305
+                },
+                {
+                  "file_id": "AgACAgQAAxkBAAIJTWh6bbB7-sftdKM6zgN0xzkZ2kvoAALLxDEbJ9DZU2L_nCzSdB2XAQADAgADbQADNgQ",
+                  "file_unique_id": "AQADy8QxGyfQ2VNy",
+                  "file_size": 19729,
+                  "width": 320,
+                  "height": 272
+                }
+              ]
+            }
+          },
+          "webhookUrl": "https://s2vm2.publicvm.com/webhook/telegram-hook",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Get_Message": {
+      "main": [
+        [
+          {
+            "node": "If_Text_Else_File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Messsage_Hook": {
+      "main": [
+        [
+          {
+            "node": "Get_Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_FileId": {
+      "main": [
+        [
+          {
+            "node": "Get_FilePath",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download_File": {
+      "main": [
+        [
+          {
+            "node": "Extract_Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get_FilePath": {
+      "main": [
+        [
+          {
+            "node": "Download_File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_Text": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send_Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Vertex Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Send_Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_Text_Else_File": {
+      "main": [
+        [
+          {
+            "node": "Send_File_Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract_FileId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Send_Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0de4361d-3ead-49e3-b962-8994dd403e17",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "17bda647dd1ace159e9a689493e376047d9a29981d1065fa151fcd6b9945b2be"
+  },
+  "id": "4hEZFAclkz8VPAD3",
+  "tags": []
+}

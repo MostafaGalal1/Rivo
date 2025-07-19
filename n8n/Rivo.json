@@ -1,0 +1,315 @@
+{
+  "name": "Rivo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "app-hook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1180,
+        -450
+      ],
+      "id": "98674a7b-3fd5-4cc4-8679-790e54382242",
+      "name": "Messsage_Hook",
+      "webhookId": "f48623f6-a937-404a-9716-cdf9cf183d64"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://rivo-backend:3000/api/upload",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "file"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -960,
+        -450
+      ],
+      "id": "b2918811-a7ea-4407-9ad4-feb1a5d3ed05",
+      "name": "Extract_Text",
+      "alwaysOutputData": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.result }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "check if input is a valid prescription text. if Yes then output prescription details only (medicine, doses, etc..) without any additioinal generated text. if No then output exactly \"Not a valid prescription.\"."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -740,
+        -700
+      ],
+      "id": "6bef2bab-eb54-4d46-9e7e-b54034656dcd",
+      "name": "Basic LLM Chain",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "value": "rivo-466322",
+          "mode": "list",
+          "cachedResultName": "Rivo"
+        },
+        "modelName": "gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleVertex",
+      "typeVersion": 1,
+      "position": [
+        -652,
+        -480
+      ],
+      "id": "d88c341c-e959-4a5d-b9c8-c384b2db6098",
+      "name": "Google Vertex Chat Model",
+      "credentials": {
+        "googleApi": {
+          "id": "A9GGNUMCq2Qjcgv3",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "252b5755-5739-44d6-a98a-5b23f9d86321",
+              "name": "text",
+              "value": "Not a valid prescription.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -364,
+        -525
+      ],
+      "id": "a9230cd6-9b36-4a2a-834e-1759dae88fd4",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"text\": \"Something went wrong. Please, try again later.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -662,
+        -300
+      ],
+      "id": "63bdc049-1fe7-4b43-b8ab-405fe11491fd",
+      "name": "Respond_Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"text\": \"{{ $json.text.replace(/\\n/g, '\\\\n') }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -144,
+        -600
+      ],
+      "id": "eaa05586-1e61-4cf9-959e-d31a8cfb3bb4",
+      "name": "Respond_Done"
+    }
+  ],
+  "pinData": {
+    "Messsage_Hook": [
+      {
+        "json": {
+          "headers": {
+            "connection": "upgrade",
+            "host": "s2vm2.publicvm.com",
+            "content-length": "1099",
+            "content-type": "application/json",
+            "accept-encoding": "gzip, deflate"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "update_id": 182267097,
+            "message": {
+              "message_id": 2386,
+              "from": {
+                "id": 1134991521,
+                "is_bot": false,
+                "first_name": "Mostafa",
+                "last_name": "Galal",
+                "language_code": "en"
+              },
+              "chat": {
+                "id": 1134991521,
+                "first_name": "Mostafa",
+                "last_name": "Galal",
+                "type": "private"
+              },
+              "date": 1752855895,
+              "forward_origin": {
+                "type": "user",
+                "sender_user": {
+                  "id": 1134991521,
+                  "is_bot": false,
+                  "first_name": "Mostafa",
+                  "last_name": "Galal",
+                  "language_code": "en"
+                },
+                "date": 1752853936
+              },
+              "forward_from": {
+                "id": 1134991521,
+                "is_bot": false,
+                "first_name": "Mostafa",
+                "last_name": "Galal",
+                "language_code": "en"
+              },
+              "forward_date": 1752853936,
+              "photo": [
+                {
+                  "file_id": "AgACAgQAAxkBAAIJTWh6bbB7-sftdKM6zgN0xzkZ2kvoAALLxDEbJ9DZU2L_nCzSdB2XAQADAgADcwADNgQ",
+                  "file_unique_id": "AQADy8QxGyfQ2VN4",
+                  "file_size": 1157,
+                  "width": 90,
+                  "height": 76
+                },
+                {
+                  "file_id": "AgACAgQAAxkBAAIJTWh6bbB7-sftdKM6zgN0xzkZ2kvoAALLxDEbJ9DZU2L_nCzSdB2XAQADAgADeAADNgQ",
+                  "file_unique_id": "AQADy8QxGyfQ2VN9",
+                  "file_size": 15402,
+                  "width": 359,
+                  "height": 305
+                },
+                {
+                  "file_id": "AgACAgQAAxkBAAIJTWh6bbB7-sftdKM6zgN0xzkZ2kvoAALLxDEbJ9DZU2L_nCzSdB2XAQADAgADbQADNgQ",
+                  "file_unique_id": "AQADy8QxGyfQ2VNy",
+                  "file_size": 19729,
+                  "width": 320,
+                  "height": 272
+                }
+              ]
+            }
+          },
+          "webhookUrl": "https://s2vm2.publicvm.com/webhook/telegram-hook",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Messsage_Hook": {
+      "main": [
+        [
+          {
+            "node": "Extract_Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_Text": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond_Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Vertex Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Respond_Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Respond_Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f755952e-0239-4a74-bed9-f02374818799",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "17bda647dd1ace159e9a689493e376047d9a29981d1065fa151fcd6b9945b2be"
+  },
+  "id": "BYzVGIDX8nLSoV1O",
+  "tags": []
+}
